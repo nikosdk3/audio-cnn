@@ -90,7 +90,8 @@ class AudioClassifier:
         spectrogram = spectrogram.to(self.device)
 
         with torch.no_grad():
-            output = self.model(spectrogram)
+            output, feature_maps = self.model(
+                spectrogram, return_feature_maps=True)
 
             output = torch.nan_to_num(output)
             probabilities = torch.softmax(output, dim=1)
@@ -99,8 +100,41 @@ class AudioClassifier:
             predictions = [{"class": self.classes[idx.item()], "confidence": prob.item(
             )} for prob, idx in zip(top3_probs, top3_indices)]
 
+            viz_data = {}
+            for name, tensor in feature_maps.items():
+                if tensor.dim() == 4:
+                    aggregated_tensor = torch.mean(tensor, dim=1)
+                    squeezed_tensor = aggregated_tensor.squeeze(0)
+                    numpy_array = squeezed_tensor.cpu().numpy()
+                    clean_array = np.nan_to_num(numpy_array)
+                    viz_data[name] = {
+                        "shape": list(clean_array.shape),
+                        "values": clean_array.tolist()
+                    }
+
+            spectorgram_np = spectrogram.squeeze(0).squeeze(0).cpu().numpy()
+            clean_spectrogram = np.nan_to_num(spectorgram_np)
+
+            max_samples = 8000
+            waveform_sample_rate = 44100
+            if len(audio_data) > max_samples:
+                step = len(audio_data) // max_samples
+                waveform_data = audio_data[::step]
+            else:
+                waveform_data = audio_data
+
         response = {
-            "predictions": predictions
+            "predictions": predictions,
+            "visualization": viz_data,
+            "input_spectrogram": {
+                "shape": list(clean_spectrogram.shape),
+                "values": clean_spectrogram.tolist(),
+            },
+            "waveform": {
+                "values": waveform_data.tolist(),
+                "sample_rate": waveform_sample_rate,
+                "duration": len(audio_data) / waveform_sample_rate
+            }
         }
 
         return response
@@ -121,6 +155,13 @@ def main():
     response.raise_for_status()
 
     result = response.json()
+
+    waveform_info = result.get("waveform", {})
+    if waveform_info:
+        values = waveform_info.get("values", {})
+        print(f"First 10 values: {[round(v, 4) for v in values[:10]]}...")
+        print(f"Duration: {waveform_info.get("duration", 0)}")
+
     print("Top predictions:")
     for pred in result.get("predictions", []):
         print(f"  -{pred["class"]} {pred["confidence"]:0.2%}")
