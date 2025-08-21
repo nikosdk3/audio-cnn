@@ -2,8 +2,12 @@
 
 import { useState } from "react";
 
+import ColorScale from "~/components/ColorScale";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
+import { Progress } from "~/components/ui/progress";
+import { Card, CardContent, CardHeader } from "~/components/ui/card";
+import FeatureMap from "~/components/FeatureMap";
 
 interface Prediction {
   class: string;
@@ -30,6 +34,82 @@ interface ApiResponse {
   waveform: WaveformData;
 }
 
+function splitLayers(visualization: VisualizationData) {
+  const main: [string, LayerData][] = [];
+  const internals: Record<string, [string, LayerData][]> = {};
+  for (const [name, data] of Object.entries(visualization)) {
+    if (!name.includes(".")) {
+      main.push([name, data]);
+    } else {
+      const [parent] = name.split(".");
+
+      if (parent === undefined) continue;
+
+      internals[parent] ??= [];
+      internals[parent].push([name, data]);
+    }
+  }
+
+  return { main, internals };
+}
+
+const ESC50_EMOJI_MAP: Record<string, string> = {
+  dog: "🐶",
+  rooster: "🐓",
+  pig: "🐷",
+  cow: "🐄",
+  frog: "🐸",
+  cat: "🐱",
+  hen: "🐔",
+  insects: "🐝",
+  sheep: "🐑",
+  crow: "🐦",
+  rain: "🌧️",
+  sea_waves: "🌊",
+  crackling_fire: "🔥",
+  crickets: "🦗",
+  chirping_birds: "🐦🎶",
+  water_drops: "💧",
+  wind: "💨",
+  pouring_water: "🚰",
+  toilet_flush: "🚽",
+  thunderstorm: "⛈️",
+  crying_baby: "👶😭",
+  sneezing: "🤧",
+  clapping: "👏",
+  breathing: "😮‍💨",
+  coughing: "😷",
+  footsteps: "👣",
+  laughing: "😂",
+  brushing_teeth: "🪥",
+  snoring: "😴",
+  drinking_sipping: "🥤",
+  door_wood_knock: "🚪👊",
+  mouse_click: "🖱️",
+  keyboard_typing: "⌨️",
+  door_wood_creaks: "🚪😬",
+  can_opening: "🥫",
+  washing_machine: "🧺",
+  vacuum_cleaner: "🧹",
+  clock_alarm: "⏰",
+  clock_tick: "🕰️",
+  glass_breaking: "🥂💥",
+  helicopter: "🚁",
+  chainsaw: "🪚",
+  siren: "🚨",
+  car_horn: "🚗📢",
+  engine: "🔧🚗",
+  train: "🚆",
+  church_bells: "🔔⛪",
+  airplane: "✈️",
+  fireworks: "🎆",
+  hand_saw: "🪚✋",
+};
+
+const getEmojiForClass = (className: string): string => {
+  return ESC50_EMOJI_MAP[className] ?? "❤️";
+};
+
 export default function HomePage() {
   const [vizData, setVizData] = useState<ApiResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -52,12 +132,7 @@ export default function HomePage() {
     reader.onload = async () => {
       try {
         const arrayBuffer = reader.result as ArrayBuffer;
-        const base64String = btoa(
-          new Uint8Array(arrayBuffer).reduce(
-            (data, bytes) => data + String.fromCharCode(bytes),
-            "",
-          ),
-        );
+        const base64String = Buffer.from(arrayBuffer).toString("base64");
 
         const response = await fetch(
           "https://nikosdk3--audio-cnn-inference-audioclassifier-inference.modal.run/",
@@ -72,7 +147,7 @@ export default function HomePage() {
           throw new Error(`API Error ${response.statusText}`);
         }
 
-        const data: ApiResponse = (await response.json()) as ApiResponse;
+        const data = (await response.json()) as ApiResponse;
         setVizData(data);
       } catch (err) {
         setError(
@@ -88,6 +163,10 @@ export default function HomePage() {
       setIsLoading(false);
     };
   };
+
+  const { main, internals } = vizData
+    ? splitLayers(vizData?.visualization)
+    : { main: [], internals: {} };
 
   return (
     <main className="min-h-screen bg-stone-50 p-8">
@@ -107,6 +186,7 @@ export default function HomePage() {
                 type="file"
                 accept=".wav"
                 id="file-upload"
+                onChange={handleFileChange}
                 disabled={isLoading}
                 className="absolute inset-0 w-full cursor-pointer opacity-0"
               />
@@ -130,6 +210,57 @@ export default function HomePage() {
             )}
           </div>
         </div>
+
+        {error && (
+          <Card className="mb-8 border-red-200 bg-red-50">
+            <CardContent>
+              <p className="text-red-600">Error: {error}</p>
+            </CardContent>
+          </Card>
+        )}
+
+        {vizData && (
+          <div className="space-y-8">
+            <Card>
+              <CardHeader>Top Predictions</CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {vizData.predictions.map((pred, i) => (
+                    <div key={pred.class} className="space-y-2">
+                      <div className="flex items-center justify-between space-x-3">
+                        <div className="text-xl font-medium text-stone-700">
+                          {getEmojiForClass(pred.class)}{" "}
+                          <span>{pred.class.replaceAll("_", " ")}</span>
+                        </div>
+                        <Badge variant={i === 0 ? "default" : "secondary"}>
+                          {(pred.confidence * 100).toFixed(1)}%
+                        </Badge>
+                      </div>
+                      <Progress value={pred.confidence * 100} />
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+              <Card>
+                <CardHeader className="text-stone-900">
+                  Input Spectrogram
+                </CardHeader>
+                <CardContent>
+                  <FeatureMap
+                    data={vizData.input_spectrogram.values}
+                    title={`${vizData.input_spectrogram.shape.join(" x ")}`}
+                  />
+                  <div className="mt-5 flex justify-end">
+                    <ColorScale />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        )}
       </div>
     </main>
   );
