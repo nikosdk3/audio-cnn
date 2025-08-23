@@ -149,10 +149,6 @@ export default function HomePage() {
         }
 
         const data = (await response.json()) as ApiResponse;
-
-        if (process.env.NODE_ENV === "development") {
-          localStorage.setItem("mock_response", JSON.stringify(data));
-        }
         setVizData(data);
       } catch (err) {
         setError(
@@ -172,17 +168,6 @@ export default function HomePage() {
   const { main, internals } = vizData
     ? splitLayers(vizData?.visualization)
     : { main: [], internals: {} };
-
-  useEffect(() => {
-    if (process.env.NODE_ENV === "development") {
-      const cached = localStorage.getItem("mock_response");
-      if (cached) {
-        setVizData(JSON.parse(cached) as ApiResponse);
-        const jsonStr = JSON.stringify(cached, null, 2);
-        console.log(jsonStr);
-      }
-    }
-  }, []);
 
   return (
     <main className="min-h-screen bg-stone-50 p-8">

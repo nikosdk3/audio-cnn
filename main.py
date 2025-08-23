@@ -142,12 +142,12 @@ class AudioClassifier:
 
 @app.local_entrypoint()
 def main():
-    audio_data, _ = sf.read("thunderstorm.wav")
+    # audio_data, _ = sf.read("thunderstorm.wav")
 
-    buffer = io.BytesIO()
-    sf.write(buffer, audio_data, 44100, format="WAV")
-    audio_b64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
-    payload = {"audio_data": audio_b64}
+    # buffer = io.BytesIO()
+    # sf.write(buffer, audio_data, 44100, format="WAV")
+    # audio_b64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
+    payload = {"audio_data": ""}
 
     server = AudioClassifier()
     url = server.inference.get_web_url()
