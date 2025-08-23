@@ -18,7 +18,6 @@ const Waveform = ({ data, title }: Props) => {
 
   const range = max - min;
   const scaleY = height * 0.45;
-  console.log(range);
 
   const pathData = validData
     .map((sample, i) => {

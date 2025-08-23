@@ -16,7 +16,6 @@ const FeatureMap = ({ data, title, internal, spectrogram }: Props) => {
   const absMax = data
     .flat()
     .reduce((acc, val) => Math.max(acc, Math.abs(val ?? 0)), 0);
-  console.log(absMax);
   return (
     <div className="w-full text-center">
       <svg
