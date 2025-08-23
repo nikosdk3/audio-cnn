@@ -1,13 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import ColorScale from "~/components/ColorScale";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Progress } from "~/components/ui/progress";
-import { Card, CardContent, CardHeader } from "~/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import FeatureMap from "~/components/FeatureMap";
+import Waveform from "~/components/Waveform";
 
 interface Prediction {
   class: string;
@@ -148,6 +149,10 @@ export default function HomePage() {
         }
 
         const data = (await response.json()) as ApiResponse;
+
+        if (process.env.NODE_ENV === "development") {
+          localStorage.setItem("mock_response", JSON.stringify(data));
+        }
         setVizData(data);
       } catch (err) {
         setError(
@@ -168,9 +173,20 @@ export default function HomePage() {
     ? splitLayers(vizData?.visualization)
     : { main: [], internals: {} };
 
+  useEffect(() => {
+    if (process.env.NODE_ENV === "development") {
+      const cached = localStorage.getItem("mock_response");
+      if (cached) {
+        setVizData(JSON.parse(cached) as ApiResponse);
+        const jsonStr = JSON.stringify(cached, null, 2);
+        console.log(jsonStr);
+      }
+    }
+  }, []);
+
   return (
     <main className="min-h-screen bg-stone-50 p-8">
-      <div className="mx-auto max-w-[60%]">
+      <div className="mx-auto max-w-full">
         <div className="mb-12 text-center">
           <h1 className="mb-4 text-4xl font-light tracking-tight text-stone-900">
             CNN Audio Visualizer
@@ -222,7 +238,11 @@ export default function HomePage() {
         {vizData && (
           <div className="space-y-8">
             <Card>
-              <CardHeader>Top Predictions</CardHeader>
+              <CardHeader>
+                <CardTitle className="text-stone-900">
+                  Top Predictions
+                </CardTitle>
+              </CardHeader>
               <CardContent>
                 <div className="space-y-3">
                   {vizData.predictions.map((pred, i) => (
@@ -245,20 +265,80 @@ export default function HomePage() {
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
               <Card>
-                <CardHeader className="text-stone-900">
-                  Input Spectrogram
+                <CardHeader>
+                  <CardTitle className="text-stone-900">
+                    Input Spectrogram
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <FeatureMap
                     data={vizData.input_spectrogram.values}
                     title={`${vizData.input_spectrogram.shape.join(" x ")}`}
+                    spectrogram
                   />
                   <div className="mt-5 flex justify-end">
                     <ColorScale />
                   </div>
                 </CardContent>
               </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-stone-900">
+                    Audio Waveform
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Waveform
+                    data={vizData.waveform.values}
+                    title={`${vizData.waveform.duration}s * ${vizData.waveform.sample_rate}Hz`}
+                  />
+                </CardContent>
+              </Card>
             </div>
+
+            {/* Feature Maps */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Convolutional Layer Outputs</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-5 gap-6">
+                  {main.map(([mainName, mainData]) => (
+                    <div key={mainName} className="space-y-4">
+                      <div>
+                        <h4 className="mb-2 font-medium text-stone-700">
+                          {mainName}
+                        </h4>
+                        <FeatureMap
+                          data={mainData.values}
+                          title={mainData.shape.join(" x ")}
+                        />
+                      </div>
+
+                      {internals[mainName] && (
+                        <div className="h-80 overflow-y-auto rounded border border-stone-200 bg-stone-50 p-2">
+                          <div className="space-y-2">
+                            {internals[mainName]
+                              .sort(([a], [b]) => a.localeCompare(b))
+                              .map(([layerName, layerData]) => (
+                                <FeatureMap
+                                  key={layerName}
+                                  data={layerData.values}
+                                  title={layerName.replace(`${mainName}.`, "")}
+                                  internal={true}
+                                />
+                              ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-5 flex justify-end">
+                  <ColorScale />
+                </div>
+              </CardContent>
+            </Card>
           </div>
         )}
       </div>

@@ -24,7 +24,7 @@ image = (
 model_volume = modal.Volume.from_name("esc-model")
 
 
-class AudioProcesssor:
+class AudioProcessor:
     def __init__(self):
         self.transform = nn.Sequential(
             T.MelSpectrogram(
@@ -69,7 +69,7 @@ class AudioClassifier:
         self.model.to(self.device)
         self.model.eval()
 
-        self.audio_processor = AudioProcesssor()
+        self.audio_processor = AudioProcessor()
         print("Model loaded on enter.")
 
     @modal.fastapi_endpoint(method="POST")
@@ -112,8 +112,8 @@ class AudioClassifier:
                         "values": clean_array.tolist()
                     }
 
-            spectorgram_np = spectrogram.squeeze(0).squeeze(0).cpu().numpy()
-            clean_spectrogram = np.nan_to_num(spectorgram_np)
+            spectrogram_np = spectrogram.squeeze(0).squeeze(0).cpu().numpy()
+            clean_spectrogram = np.nan_to_num(spectrogram_np)
 
             max_samples = 8000
             waveform_sample_rate = 44100

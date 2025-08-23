@@ -4,9 +4,10 @@ interface Props {
   data: number[][];
   title: string;
   internal?: boolean;
+  spectrogram?: boolean;
 }
 
-const FeatureMap = ({ data, title, internal }: Props) => {
+const FeatureMap = ({ data, title, internal, spectrogram }: Props) => {
   if (!data?.[0]?.length) return null;
 
   const mapHeight = data.length;
@@ -15,12 +16,13 @@ const FeatureMap = ({ data, title, internal }: Props) => {
   const absMax = data
     .flat()
     .reduce((acc, val) => Math.max(acc, Math.abs(val ?? 0)), 0);
+  console.log(absMax);
   return (
     <div className="w-full text-center">
       <svg
         viewBox={`0 0 ${mapWidth} ${mapHeight}`}
         preserveAspectRatio="none"
-        className={`mx-auto block rounded border border-stone-300 ${internal ? "w-full max-w-32" : "max-h-[300px] w-full max-w-[500px] object-contain"}`}
+        className={`mx-auto block rounded border border-stone-300 ${internal ? "w-full max-w-32" : spectrogram ? "w-full object-contain" : "max-h-[300px] w-full max-w-[500px] object-contain"}`}
       >
         {data.flatMap((row, i) =>
           row.map((value, j) => {
