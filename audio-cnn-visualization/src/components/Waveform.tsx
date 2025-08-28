@@ -1,14 +1,32 @@
+import { useEffect, useRef, useState } from "react";
+
 interface Props {
   data: number[];
   title: string;
+  duration: number;
+  audioUrl: string;
 }
 
-const Waveform = ({ data, title }: Props) => {
-  if (!data || data.length === 0) return null;
+const Waveform = ({ data, title, duration, audioUrl }: Props) => {
+  const [currentTime, setCurrentTime] = useState(0);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const width = 600;
   const height = 300;
   const centerY = height / 2;
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const handleTimeUpdate = () => setCurrentTime(audio.currentTime);
+    audio.addEventListener("timeupdate", handleTimeUpdate);
+    return () => {
+      audio.removeEventListener("timeupdate", handleTimeUpdate);
+    };
+  }, []);
+
+  if (!data || data.length === 0) return null;
 
   const validData = data.filter((val) => !isNaN(val) && isFinite(val));
   if (validData.length === 0) return null;
@@ -33,6 +51,9 @@ const Waveform = ({ data, title }: Props) => {
     })
     .join(" ");
 
+  const progressRatio = duration > 0 ? currentTime / duration : 0;
+  const cursorX = progressRatio * width;
+
   return (
     <div className="flex h-full w-full flex-col">
       <div className="flex flex-1 items-center justify-center">
@@ -54,9 +75,19 @@ const Waveform = ({ data, title }: Props) => {
             strokeLinejoin="round"
             strokeLinecap="round"
           />
+          <line
+            x1={cursorX}
+            y1={0}
+            x2={cursorX}
+            y2={height}
+            stroke="red"
+            strokeWidth="2"
+          />
         </svg>
       </div>
       <p className="mt-2 text-center text-xs text-stone-500">{title}</p>
+
+      <audio ref={audioRef} controls src={audioUrl} className="mt-3 w-full" />
     </div>
   );
 };

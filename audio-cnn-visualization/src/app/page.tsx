@@ -26,6 +26,7 @@ interface WaveformData {
   values: number[];
   sample_rate: number;
   duration: number;
+  audioUrl: string;
 }
 
 interface ApiResponse {
@@ -116,6 +117,7 @@ export default function HomePage() {
   const [isLoading, setIsLoading] = useState(false);
   const [fileName, setFileName] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
 
   const handleFileChange = async (
     event: React.ChangeEvent<HTMLInputElement>,
@@ -127,6 +129,7 @@ export default function HomePage() {
     setIsLoading(true);
     setError(null);
     setVizData(null);
+    setAudioUrl(URL.createObjectURL(file));
 
     const reader = new FileReader();
     reader.readAsArrayBuffer(file);
@@ -276,6 +279,8 @@ export default function HomePage() {
                   <Waveform
                     data={vizData.waveform.values}
                     title={`${vizData.waveform.duration}s * ${vizData.waveform.sample_rate}Hz`}
+                    duration={vizData.waveform.duration}
+                    audioUrl={audioUrl!}
                   />
                 </CardContent>
               </Card>
